@@ -14,9 +14,9 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set(PROJECT_SOURCES
         main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+        mainwindowSB.cpp
+
+        mainwindowSB.ui
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -38,6 +38,13 @@ else()
     else()
         add_executable(Kursov
             ${PROJECT_SOURCES}
+            ship.h
+            ship.cpp
+            mainwindowSB.h
+            gamefield.h
+            cell.h
+            cell.cpp
+            gamefield.cpp
         )
     endif()
 endif()
