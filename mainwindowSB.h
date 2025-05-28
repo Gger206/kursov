@@ -1,34 +1,46 @@
-#pragma once
-#ifndef MAINWINDOWSB_H
-#define MAINWINDOWSB_H
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 #include "gamefield.h"
 #include "enemyfleet.h"
 #include "enemyshot.h"
-#include <QTimer>
+#include "player.h"
+
+QT_BEGIN_NAMESPACE
+namespace Ui { class MainWindow; }
+QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
+
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+private slots:
+    void onStartGame();
+    void enemyShoot();
+    void onShipPlacementFinished();
 
 private:
     Ui::MainWindow *ui;
-    GameField* m_playerField;
-    GameField* m_enemyField;
 
-    EnemyAI* m_enemyAI;
-    EnemyShooter* m_enemyShooter;
+    GameField* m_playerField = nullptr;
+    GameField* m_enemyField = nullptr;
 
-    bool m_playerTurn = true;
+    EnemyFleet* m_enemyAI = nullptr;
+    EnemyShooter* m_enemyShooter = nullptr;
+
     QTimer* m_enemyTimer;
+    bool m_playerTurn = true;
+
+    Player* m_player = nullptr;
 
     void setupPlayerField();
     void setupEnemyField();
-    void onStartGame();
     void playerShoot(int row, int col);
-    void enemyShoot();
-    void nextTurn();
 };
+
+#endif // MAINWINDOW_H

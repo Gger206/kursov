@@ -14,6 +14,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::onStartGame);
 
     connect(m_enemyTimer, &QTimer::timeout, this, &MainWindow::enemyShoot);
+
+    m_player = new Player(m_playerField, this);
+    connect(m_player, &Player::shipPlacementFinished, this, &MainWindow::onShipPlacementFinished);
+    m_player->startPlacingShips();
 }
 
 MainWindow::~MainWindow() {
@@ -22,6 +26,17 @@ MainWindow::~MainWindow() {
 
 void MainWindow::setupPlayerField() {
     m_playerField = new GameField(this, ui->widget_3);
+    for (int row = 0; row < 10; ++row) {
+        for (int col = 0; col < 10; ++col) {
+            Cell* cell = m_playerField->cellAt(row, col);
+            QPushButton* btn = cell->button();
+            connect(btn, &QPushButton::clicked, [=]() {
+                if (m_player) {
+                    m_player->handleCellClick(row, col);
+                }
+            });
+        }
+    }
 }
 
 void MainWindow::setupEnemyField() {
@@ -31,11 +46,10 @@ void MainWindow::setupEnemyField() {
 void MainWindow::onStartGame() {
     ui->label->setText("Игра началась!");
 
-    m_enemyAI = new EnemyAI(m_enemyField);
+    m_enemyAI = new EnemyFleet(m_enemyField);
     m_enemyAI->placeShips();
 
     m_enemyShooter = new EnemyShooter(m_playerField);
-
 
     for (int row = 0; row < 10; ++row) {
         for (int col = 0; col < 10; ++col) {
@@ -85,4 +99,8 @@ void MainWindow::enemyShoot() {
         m_enemyTimer->stop();
         m_playerTurn = true;
     }
+}
+
+void MainWindow::onShipPlacementFinished() {
+    ui->label->setText("Все корабли расставлены. Начинаем бой!");
 }

@@ -49,6 +49,8 @@ else()
             enemyfleet.cpp
             enemyshot.h
             enemyshot.cpp
+            player.h
+            player.cpp
         )
     endif()
 endif()
