@@ -6,33 +6,29 @@
 #include "gamefield.h"
 #include "enemyfleet.h"
 #include "enemyshot.h"
-
-QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
+#include <QTimer>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
-
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-private slots:
-    void onStartGame();
-    void onEnemyTurn();
-
 private:
     Ui::MainWindow *ui;
-
     GameField* m_playerField;
     GameField* m_enemyField;
 
     EnemyAI* m_enemyAI;
     EnemyShooter* m_enemyShooter;
 
+    bool m_playerTurn = true;
+    QTimer* m_enemyTimer;
+
     void setupPlayerField();
     void setupEnemyField();
+    void onStartGame();
+    void playerShoot(int row, int col);
+    void enemyShoot();
+    void nextTurn();
 };
-
-#endif // MAINWINDOWSB_H
