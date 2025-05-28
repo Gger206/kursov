@@ -4,6 +4,8 @@
 
 #include <QMainWindow>
 #include "gamefield.h"
+#include "enemyfleet.h"
+#include "enemyshot.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -16,15 +18,21 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+private slots:
+    void onStartGame();
+    void onEnemyTurn();
+
 private:
     Ui::MainWindow *ui;
 
     GameField* m_playerField;
     GameField* m_enemyField;
 
+    EnemyAI* m_enemyAI;
+    EnemyShooter* m_enemyShooter;
+
     void setupPlayerField();
     void setupEnemyField();
-    void onStartGame();
 };
 
 #endif // MAINWINDOWSB_H
