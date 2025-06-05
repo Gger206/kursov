@@ -44,6 +44,8 @@ private:
     void playerShoot(int row, int col);
     void showPlacementPreview(int row, int col);
     void clearPreview();
+    void checkIfShipSunk(int row, int col);
+    bool checkWinCondition();
 };
 
 #endif // MAINWINDOWSB_H

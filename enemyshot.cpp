@@ -29,12 +29,16 @@ QPoint EnemyShooter::makeShot() {
 
 void EnemyShooter::processShotResult(const QPoint& point, bool hit) {
     if (hit) {
+
         auto adj = getAdjacentPoints(point);
         for (const auto& p : adj) {
-            if (!isVisited(p))
+            if (!isVisited(p)) {
                 m_targets.push_back(p);
+            }
         }
     }
+
+    m_targets.erase(std::remove(m_targets.begin(), m_targets.end(), point), m_targets.end());
 }
 
 std::vector<QPoint> EnemyShooter::getAdjacentPoints(const QPoint& point) const {

@@ -5,12 +5,11 @@ EnemyFleet::EnemyFleet(GameField* field)
     : m_field(field) {}
 
 void EnemyFleet::placeShips() {
-    // Правильное количество кораблей:
-    // 1x4, 2x3, 3x2, 4x1
-    placeShipOfSize(4, 1); // 1 четырехпалубный
-    placeShipOfSize(3, 2); // 2 трехпалубных
-    placeShipOfSize(2, 3); // 3 двухпалубных
-    placeShipOfSize(1, 4); // 4 однопалубных
+
+    placeShipOfSize(4, 1);
+    placeShipOfSize(3, 2);
+    placeShipOfSize(2, 3);
+    placeShipOfSize(1, 4);
 }
 
 void EnemyFleet::placeShipOfSize(int size, int count) {

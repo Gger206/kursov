@@ -12,7 +12,6 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Настройка комбобокса
     ui->shipTypeCombo->addItem("4 (Линкор)", 4);
     ui->shipTypeCombo->addItem("3 (Крейсер)", 3);
     ui->shipTypeCombo->addItem("2 (Эсминец)", 2);
@@ -23,7 +22,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_player = new Player(m_playerField, this);
     m_enemyTimer = new QTimer(this);
 
-    // Подключение сигналов
     connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::onStartGame);
     connect(ui->rotateButton, &QPushButton::clicked, this, &MainWindow::onRotateClicked);
     connect(ui->shipTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -50,6 +48,18 @@ void MainWindow::setupFields() {
             connect(btn, &QPushButton::clicked, [this, row, col]() {
                 if (m_player && !m_player->allShipsPlaced()) {
                     m_player->handleCellClick(row, col);
+                }
+            });
+        }
+    }
+
+    for (int row = 0; row < 10; ++row) {
+        for (int col = 0; col < 10; ++col) {
+            QPushButton* btn = m_enemyField->cellAt(row, col)->button();
+            disconnect(btn, &QPushButton::clicked, nullptr, nullptr);
+            connect(btn, &QPushButton::clicked, [this, row, col]() {
+                if (m_playerTurn) {
+                    this->playerShoot(row, col);
                 }
             });
         }
@@ -159,11 +169,13 @@ void MainWindow::onShipPlacementFinished() {
     m_enemyAI->placeShips();
     m_enemyShooter = new EnemyShooter(m_playerField);
 
-    // Активируем поле противника для стрельбы
     for (int row = 0; row < 10; ++row) {
         for (int col = 0; col < 10; ++col) {
-            connect(m_enemyField->cellAt(row, col)->button(), &QPushButton::clicked,
-                    [=]() { playerShoot(row, col); });
+            QPushButton* btn = m_enemyField->cellAt(row, col)->button();
+            disconnect(btn, &QPushButton::clicked, nullptr, nullptr); // Отключаем все предыдущие соединения
+            connect(btn, &QPushButton::clicked, [this, row, col]() {
+                this->playerShoot(row, col);
+            });
         }
     }
 }
@@ -172,28 +184,81 @@ void MainWindow::playerShoot(int row, int col) {
     if (!m_playerTurn || !m_enemyField) return;
 
     Cell* cell = m_enemyField->cellAt(row, col);
-    if (!cell || cell->state() != CellState::Empty) return;
+    if (!cell) return;
 
-    if (cell->state() == CellState::Ship) {
+    if (cell->state() == CellState::Hit || cell->state() == CellState::Miss) {
+        return;
+    }
+
+    bool isHit = (cell->state() == CellState::Ship);
+
+    if (isHit) {
         cell->setState(CellState::Hit);
+        checkIfShipSunk(row, col);
     } else {
         cell->setState(CellState::Miss);
+    }
+
+    if (isHit) {
+        if (checkWinCondition()) {
+            QMessageBox::information(this, "Победа!", "Вы победили!");
+            return;
+        }
+        m_playerTurn = true;
+    } else {
         m_playerTurn = false;
-        m_enemyTimer->start(1000);
+        QTimer::singleShot(1000, this, &MainWindow::enemyShoot);
     }
 }
 
 void MainWindow::enemyShoot() {
-    m_enemyTimer->stop();
+    if (m_playerTurn) return;
+
     QPoint target = m_enemyShooter->makeShot();
     Cell* cell = m_playerField->cellAt(target.y(), target.x());
 
-    if (cell->state() == CellState::Ship) {
+    if (!cell) return;
+
+    if (cell->state() == CellState::Hit || cell->state() == CellState::Miss) {
+        QTimer::singleShot(10, this, &MainWindow::enemyShoot);
+        return;
+    }
+
+    bool isHit = (cell->state() == CellState::Ship);
+
+    if (isHit) {
         cell->setState(CellState::Hit);
-        m_enemyShooter->processShotResult(target, true);
+        checkIfShipSunk(target.y(), target.x());
     } else {
         cell->setState(CellState::Miss);
-        m_enemyShooter->processShotResult(target, false);
+    }
+
+    m_enemyShooter->processShotResult(target, isHit);
+
+    if (isHit) {
+        if (checkWinCondition()) {
+            QMessageBox::information(this, "Поражение", "Компьютер победил!");
+            return;
+        }
+        QTimer::singleShot(1000, this, &MainWindow::enemyShoot);
+    } else {
         m_playerTurn = true;
     }
+}
+
+void MainWindow::checkIfShipSunk(int row, int col) {
+    Q_UNUSED(row);
+    Q_UNUSED(col);
+}
+
+bool MainWindow::checkWinCondition() {
+    for (int row = 0; row < 10; ++row) {
+        for (int col = 0; col < 10; ++col) {
+            Cell* cell = m_enemyField->cellAt(row, col);
+            if (cell && cell->state() == CellState::Ship) {
+                return false;
+            }
+        }
+    }
+    return true;
 }

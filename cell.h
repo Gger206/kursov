@@ -17,7 +17,7 @@ public:
     int row() const;
     int col() const;
     QPushButton* button() const;
-    CellState state() const;  // Добавляем объявление
+    CellState state() const;
 
     void setState(CellState state);
     void setPlayerOwned(bool player);
