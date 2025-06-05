@@ -3,12 +3,20 @@
 
 #include <QMessageBox>
 #include <QDebug>
+#include <QQueue>
+#include <QSet>
+#include <QPoint>
+
+inline uint qHash(const QPoint &key, uint seed = 0) noexcept {
+    return qHash(qMakePair(key.x(), key.y()), seed);
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow),
     m_playerField(nullptr), m_enemyField(nullptr),
     m_enemyAI(nullptr), m_enemyShooter(nullptr),
-    m_playerTurn(true), m_player(nullptr)
+    m_playerTurn(true), m_player(nullptr),
+    m_score(new Score(this))
 {
     ui->setupUi(this);
 
@@ -31,6 +39,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_player, &Player::shipSelectionChanged,
             this, &MainWindow::updatePlacementPreview);
     connect(m_enemyTimer, &QTimer::timeout, this, &MainWindow::enemyShoot);
+    ui->statsLabel->setText(getStatsString());
+    connect(m_score, &Score::statsChanged, [this]() {
+        ui->statsLabel->setText(getStatsString());
+    });
 }
 
 MainWindow::~MainWindow() {
@@ -184,9 +196,7 @@ void MainWindow::playerShoot(int row, int col) {
     if (!m_playerTurn || !m_enemyField) return;
 
     Cell* cell = m_enemyField->cellAt(row, col);
-    if (!cell) return;
-
-    if (cell->state() == CellState::Hit || cell->state() == CellState::Miss) {
+    if (!cell || cell->state() == CellState::Hit || cell->state() == CellState::Miss) {
         return;
     }
 
@@ -195,17 +205,16 @@ void MainWindow::playerShoot(int row, int col) {
     if (isHit) {
         cell->setState(CellState::Hit);
         checkIfShipSunk(row, col);
-    } else {
-        cell->setState(CellState::Miss);
-    }
 
-    if (isHit) {
         if (checkWinCondition()) {
-            QMessageBox::information(this, "Победа!", "Вы победили!");
+            m_score->addWin();
+            QMessageBox::information(this, "Победа!",
+                                     QString("Вы победили!\n\n%1").arg(getStatsString()));
             return;
         }
         m_playerTurn = true;
     } else {
+        cell->setState(CellState::Miss);
         m_playerTurn = false;
         QTimer::singleShot(1000, this, &MainWindow::enemyShoot);
     }
@@ -236,8 +245,13 @@ void MainWindow::enemyShoot() {
     m_enemyShooter->processShotResult(target, isHit);
 
     if (isHit) {
+        cell->setState(CellState::Hit);
+        checkIfShipSunk(target.y(), target.x());
+
         if (checkWinCondition()) {
-            QMessageBox::information(this, "Поражение", "Компьютер победил!");
+            m_score->addLoss();
+            QMessageBox::information(this, "Поражение",
+                                     QString("Компьютер победил!\n\n%1").arg(getStatsString()));
             return;
         }
         QTimer::singleShot(1000, this, &MainWindow::enemyShoot);
@@ -247,8 +261,48 @@ void MainWindow::enemyShoot() {
 }
 
 void MainWindow::checkIfShipSunk(int row, int col) {
-    Q_UNUSED(row);
-    Q_UNUSED(col);
+    QVector<QPoint> shipCells = findConnectedShipCells(row, col);
+
+    bool isSunk = true;
+    for (const QPoint& pos : shipCells) {
+        if (m_enemyField->cellAt(pos.y(), pos.x())->state() != CellState::Hit) {
+            isSunk = false;
+            break;
+        }
+    }
+}
+
+QVector<QPoint> MainWindow::findConnectedShipCells(int row, int col, bool includeDiagonal) {
+    QVector<QPoint> result;
+    QQueue<QPoint> queue;
+    queue.enqueue(QPoint(col, row));
+
+    while (!queue.isEmpty()) {
+        QPoint current = queue.dequeue();
+
+        if (result.contains(current)) continue;
+
+        Cell* cell = m_enemyField->cellAt(current.y(), current.x());
+        if (!cell || (cell->state() != CellState::Ship && cell->state() != CellState::Hit)) {
+            continue;
+        }
+
+        result.append(current);
+
+        const int dx[] = {-1, 1, 0, 0};
+        const int dy[] = {0, 0, -1, 1};
+
+        for (int i = 0; i < 4; ++i) {
+            int newX = current.x() + dx[i];
+            int newY = current.y() + dy[i];
+
+            if (newX >= 0 && newX < 10 && newY >= 0 && newY < 10) {
+                queue.enqueue(QPoint(newX, newY));
+            }
+        }
+    }
+
+    return result;
 }
 
 bool MainWindow::checkWinCondition() {
@@ -261,4 +315,15 @@ bool MainWindow::checkWinCondition() {
         }
     }
     return true;
+}
+
+QString MainWindow::getStatsString() const
+{
+    return QString("Статистика:\n"
+                   "Побед: %1\n"
+                   "Поражений: %2\n"
+                   "Всего игр: %3")
+        .arg(m_score->wins())
+        .arg(m_score->losses())
+        .arg(m_score->totalGames());
 }

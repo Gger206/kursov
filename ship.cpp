@@ -37,5 +37,3 @@ void Ship::hit() {
     if (hits < size)
         ++hits;
 }
-
-

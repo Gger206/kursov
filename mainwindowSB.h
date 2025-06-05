@@ -7,6 +7,7 @@
 #include "enemyfleet.h"
 #include "enemyshot.h"
 #include "player.h"
+#include "score.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -18,6 +19,7 @@ class MainWindow : public QMainWindow {
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    Score* score() const;
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -39,6 +41,9 @@ private:
     QTimer* m_enemyTimer;
     bool m_playerTurn;
     Player* m_player;
+    QVector<QPoint> findConnectedShipCells(int row, int col, bool includeDiagonal = false);
+    Score* m_score;
+    QString getStatsString() const;
 
     void setupFields();
     void playerShoot(int row, int col);

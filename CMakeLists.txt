@@ -51,6 +51,14 @@ else()
             enemyshot.cpp
             player.h
             player.cpp
+            score.h
+            score.cpp
+
+
+
+
+
+
         )
     endif()
 endif()
