@@ -1,11 +1,11 @@
 #include "enemyfleet.h"
 #include <QRandomGenerator>
+#include <algorithm>
 
-EnemyFleet::EnemyFleet(GameField* field)
-    : m_field(field) {}
+EnemyFleet::EnemyFleet(GameField* field) : m_field(field) {}
 
 void EnemyFleet::placeShips() {
-
+    // Правила размещения: 1x4, 2x3, 3x2, 4x1
     placeShipOfSize(4, 1);
     placeShipOfSize(3, 2);
     placeShipOfSize(2, 3);
@@ -13,43 +13,49 @@ void EnemyFleet::placeShips() {
 }
 
 void EnemyFleet::placeShipOfSize(int size, int count) {
-    for (int i = 0; i < count; ++i) {
-        bool placed = false;
-        int attempts = 0;
-        const int maxAttempts = 100;
-
-        while (!placed && attempts < maxAttempts) {
-            attempts++;
-            bool horizontal = QRandomGenerator::global()->bounded(2);
-            int x = QRandomGenerator::global()->bounded(10 - (horizontal ? size : 0));
-            int y = QRandomGenerator::global()->bounded(10 - (horizontal ? 0 : size));
-
-            auto ship = Ship::create(size);
-            ship->setPosition(QPoint(x, y), horizontal);
-
-            if (canPlaceShip(ship->getPositions())) {
-                markShipOnField(ship.get());
-                m_ships.push_back(std::move(ship));
-                placed = true;
-            }
+    for (int i = 0; i < count; ) {
+        if (tryPlaceShip(size)) {
+            i++;
         }
     }
 }
 
-bool EnemyFleet::canPlaceShip(const QVector<QPoint>& positions) {
-    for (const QPoint& pos : positions) {
-        if (pos.x() < 0 || pos.x() >= 10 || pos.y() < 0 || pos.y() >= 10)
-            return false;
+bool EnemyFleet::tryPlaceShip(int size) {
+    const int maxAttempts = 100;
+    for (int attempt = 0; attempt < maxAttempts; ++attempt) {
+        bool horizontal = QRandomGenerator::global()->bounded(2);
+        int x = QRandomGenerator::global()->bounded(10 - (horizontal ? size : 0));
+        int y = QRandomGenerator::global()->bounded(10 - (horizontal ? 0 : size));
 
-        Cell* cell = m_field->cellAt(pos.y(), pos.x());
-        if (!cell || cell->state() != CellState::Empty)
-            return false;
+        if (m_field->canPlaceShip(y, x, size, horizontal)) {
+            auto ship = Ship::create(size);
+            ship->setPosition(QPoint(x, y), horizontal);
+
+            for (const QPoint& p : ship->getPositions()) {
+                m_field->cellAt(p.y(), p.x())->setState(CellState::Ship);
+            }
+
+            m_ships.push_back(std::move(ship));
+            return true;
+        }
     }
-    return true;
+    return false;
 }
 
-void EnemyFleet::markShipOnField(Ship* ship) {
-    for (const QPoint& pos : ship->getPositions()) {
-        m_field->cellAt(pos.y(), pos.x())->setState(CellState::Ship);
+bool EnemyFleet::canPlaceShip(const QVector<QPoint>& positions) const {
+    if (!m_field) return false;
+
+    return m_field->canPlaceShip(positions.first().y(),
+                                 positions.first().x(),
+                                 positions.size(),
+                                 positions.first().y() == positions.last().y());
+}
+
+void EnemyFleet::markShipArea(const QVector<QPoint>& positions, bool markAsShip) {
+    for (const QPoint& pos : positions) {
+        Cell* cell = m_field->cellAt(pos.y(), pos.x());
+        if (cell) {
+            cell->setState(markAsShip ? CellState::Ship : CellState::Empty);
+        }
     }
 }

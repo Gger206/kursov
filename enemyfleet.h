@@ -15,9 +15,10 @@ private:
     GameField* m_field;
     std::vector<std::unique_ptr<Ship>> m_ships;
 
+    bool canPlaceShip(const QVector<QPoint>& positions) const;
+    void markShipArea(const QVector<QPoint>& positions, bool markAsShip);
+    bool tryPlaceShip(int size);
     void placeShipOfSize(int size, int count);
-    bool canPlaceShip(const QVector<QPoint>& positions);
-    void markShipOnField(Ship* ship);
 };
 
 #endif // ENEMYFLEET_H

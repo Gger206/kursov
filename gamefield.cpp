@@ -24,7 +24,34 @@ GameField::GameField(QWidget* parent, QGridLayout* layout)
     }
 }
 
-Cell* GameField::cellAt(int row, int col) {
+bool GameField::canPlaceShip(int startRow, int startCol, int size, bool horizontal) const {
+
+    if (startRow < 0 || startCol < 0) return false;
+
+    int endRow = startRow + (horizontal ? 0 : size - 1);
+    int endCol = startCol + (horizontal ? size - 1 : 0);
+
+    if (endRow >= 10 || endCol >= 10) return false;
+
+    for (int i = 0; i < size; ++i) {
+        int row = startRow + (horizontal ? 0 : i);
+        int col = startCol + (horizontal ? i : 0);
+
+        for (int r = row - 1; r <= row + 1; ++r) {
+            for (int c = col - 1; c <= col + 1; ++c) {
+                if (r >= 0 && r < 10 && c >= 0 && c < 10) {
+                    const Cell* cell = cellAt(r, c);
+                    if (cell && cell->state() == CellState::Ship) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+Cell* GameField::cellAt(int row, int col) const {
     if (row >= 0 && row < 10 && col >= 0 && col < 10) {
         return m_cells[row][col];
     }

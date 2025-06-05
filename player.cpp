@@ -16,37 +16,8 @@ void Player::startPlacingShips() {
 }
 
 bool Player::canPlaceShipAt(int row, int col, int size, bool horizontal) const {
-    if (!m_field || size <= 0) return false;
-
-    if (horizontal) {
-        if (col + size > 10) return false;
-    } else {
-        if (row + size > 10) return false;
-    }
-
-    for (int i = 0; i < size; ++i) {
-        int x = horizontal ? col + i : col;
-        int y = horizontal ? row : row + i;
-
-        Cell* cell = m_field->cellAt(y, x);
-        if (!cell || cell->state() != CellState::Empty) {
-            return false;
-        }
-
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                int nx = x + dx;
-                int ny = y + dy;
-                if (nx >= 0 && nx < 10 && ny >= 0 && ny < 10) {
-                    Cell* neighbor = m_field->cellAt(ny, nx);
-                    if (neighbor && neighbor->state() == CellState::Ship) {
-                        return false;
-                    }
-                }
-            }
-        }
-    }
-    return true;
+    if (!m_field) return false;
+    return m_field->canPlaceShip(row, col, size, horizontal);
 }
 
 void Player::placeShip(int row, int col, int size, bool horizontal) {
