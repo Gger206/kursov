@@ -5,39 +5,28 @@ EnemyFleet::EnemyFleet(GameField* field)
     : m_field(field) {}
 
 void EnemyFleet::placeShips() {
-    placeLargeShipsAtEdges();
-    placeSingleDeckShipsInCenter();
+    // Правильное количество кораблей:
+    // 1x4, 2x3, 3x2, 4x1
+    placeShipOfSize(4, 1); // 1 четырехпалубный
+    placeShipOfSize(3, 2); // 2 трехпалубных
+    placeShipOfSize(2, 3); // 3 двухпалубных
+    placeShipOfSize(1, 4); // 4 однопалубных
 }
 
-void EnemyFleet::placeLargeShipsAtEdges() {
-    const std::vector<int> sizes = {4, 3, 3, 2, 2, 2};
-    for (int size : sizes) {
+void EnemyFleet::placeShipOfSize(int size, int count) {
+    for (int i = 0; i < count; ++i) {
         bool placed = false;
-        while (!placed) {
+        int attempts = 0;
+        const int maxAttempts = 100;
+
+        while (!placed && attempts < maxAttempts) {
+            attempts++;
             bool horizontal = QRandomGenerator::global()->bounded(2);
-            int x = horizontal ? QRandomGenerator::global()->bounded(7) : (QRandomGenerator::global()->bounded(2) * 9); // край
-            int y = horizontal ? (QRandomGenerator::global()->bounded(2) * 9) : QRandomGenerator::global()->bounded(7);
+            int x = QRandomGenerator::global()->bounded(10 - (horizontal ? size : 0));
+            int y = QRandomGenerator::global()->bounded(10 - (horizontal ? 0 : size));
 
             auto ship = Ship::create(size);
             ship->setPosition(QPoint(x, y), horizontal);
-
-            if (canPlaceShip(ship->getPositions())) {
-                markShipOnField(ship.get());
-                m_ships.push_back(std::move(ship));
-                placed = true;
-            }
-        }
-    }
-}
-
-void EnemyFleet::placeSingleDeckShipsInCenter() {
-    for (int i = 0; i < 4; ++i) {
-        bool placed = false;
-        while (!placed) {
-            int x = 3 + QRandomGenerator::global()->bounded(4);
-            int y = 3 + QRandomGenerator::global()->bounded(4);
-            auto ship = Ship::create(1);
-            ship->setPosition(QPoint(x, y), true);
 
             if (canPlaceShip(ship->getPositions())) {
                 markShipOnField(ship.get());
@@ -53,7 +42,8 @@ bool EnemyFleet::canPlaceShip(const QVector<QPoint>& positions) {
         if (pos.x() < 0 || pos.x() >= 10 || pos.y() < 0 || pos.y() >= 10)
             return false;
 
-        if (m_field->cellAt(pos.y(), pos.x())->state() != CellState::Empty)
+        Cell* cell = m_field->cellAt(pos.y(), pos.x());
+        if (!cell || cell->state() != CellState::Empty)
             return false;
     }
     return true;

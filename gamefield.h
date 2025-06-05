@@ -1,21 +1,22 @@
-#pragma once
 #ifndef GAMEFIELD_H
 #define GAMEFIELD_H
 
 #include "cell.h"
 #include <vector>
 #include <QGridLayout>
-#include <QPushButton>
 #include <QWidget>
 
 class GameField {
 public:
     GameField(QWidget* parent, QGridLayout* layout);
+    ~GameField();
 
     Cell* cellAt(int row, int col);
     const std::vector<std::vector<Cell*>>& cells() const;
 
 private:
+    QWidget* m_parentWidget;
+    QGridLayout* m_gameLayout;
     std::vector<std::vector<Cell*>> m_cells;
 };
 

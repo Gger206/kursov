@@ -1,61 +1,128 @@
 #include "player.h"
+#include <algorithm>
 #include <QDebug>
 
 Player::Player(GameField* field, QObject* parent)
-    : QObject(parent), m_field(field), m_horizontal(true), m_placingShips(false)
-{
-    m_shipsToPlace = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1};
+    : QObject(parent), m_field(field), m_horizontal(true), m_placingShips(false) {
+    m_availableShips = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1};
 }
 
 void Player::startPlacingShips() {
     m_placingShips = true;
-    m_currentShipSize = m_shipsToPlace.front();
-}
-
-bool Player::allShipsPlaced() const {
-    return m_shipsToPlace.empty();
-}
-
-void Player::handleCellClick(int row, int col) {
-    if (!m_placingShips || m_shipsToPlace.empty()) return;
-
-    if (canPlaceShipAt(row, col, m_currentShipSize, m_horizontal)) {
-        placeShip(row, col, m_currentShipSize, m_horizontal);
-        m_shipsToPlace.erase(m_shipsToPlace.begin());
-
-        if (!m_shipsToPlace.empty()) {
-            m_currentShipSize = m_shipsToPlace.front();
-        } else {
-            m_placingShips = false;
-            emit shipPlacementFinished();
-        }
-    } else {
-        qDebug() << "Нельзя разместить корабль здесь.";
+    if (!m_availableShips.empty()) {
+        m_currentShipSize = m_availableShips.front();
     }
+    emit shipSelectionChanged();
 }
 
 bool Player::canPlaceShipAt(int row, int col, int size, bool horizontal) const {
+    if (!m_field || size <= 0) return false;
+
+    if (horizontal) {
+        if (col + size > 10) return false;
+    } else {
+        if (row + size > 10) return false;
+    }
+
     for (int i = 0; i < size; ++i) {
         int x = horizontal ? col + i : col;
         int y = horizontal ? row : row + i;
 
-        if (x >= 10 || y >= 10 || m_field->cellAt(y, x)->state() != CellState::Empty)
+        Cell* cell = m_field->cellAt(y, x);
+        if (!cell || cell->state() != CellState::Empty) {
             return false;
+        }
+
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                int nx = x + dx;
+                int ny = y + dy;
+                if (nx >= 0 && nx < 10 && ny >= 0 && ny < 10) {
+                    Cell* neighbor = m_field->cellAt(ny, nx);
+                    if (neighbor && neighbor->state() == CellState::Ship) {
+                        return false;
+                    }
+                }
+            }
+        }
     }
     return true;
 }
 
 void Player::placeShip(int row, int col, int size, bool horizontal) {
     auto ship = Ship::create(size);
+    if (!ship) return;
+
     ship->setPosition(QPoint(col, row), horizontal);
 
     for (const QPoint& p : ship->getPositions()) {
-        m_field->cellAt(p.y(), p.x())->setState(CellState::Ship);
+        Cell* cell = m_field->cellAt(p.y(), p.x());
+        if (cell) {
+            cell->setState(CellState::Ship);
+            cell->setPlayerOwned(true);
+        }
     }
 
     m_ships.push_back(std::move(ship));
 }
 
-void Player::shootAt(int row, int col) {
-    emit playerShot(row, col);
+void Player::selectShip(int size) {
+    if (std::find(m_availableShips.begin(), m_availableShips.end(), size) != m_availableShips.end()) {
+        m_currentShipSize = size;
+        emit shipSelectionChanged();
+    }
+}
+
+void Player::rotateCurrentShip() {
+    m_horizontal = !m_horizontal;
+    emit shipSelectionChanged();
+}
+
+bool Player::allShipsPlaced() const {
+    return m_availableShips.empty();
+}
+
+int Player::currentShipSize() const {
+    return m_currentShipSize;
+}
+
+bool Player::isHorizontal() const {
+    return m_horizontal;
+}
+
+const std::vector<int>& Player::availableShips() const {
+    return m_availableShips;
+}
+
+QString Player::getShipName(int size) const {
+    switch(size) {
+    case 4: return "Линкор";
+    case 3: return "Крейсер";
+    case 2: return "Эсминец";
+    case 1: return "Катер";
+    default: return "Неизвестный";
+    }
+}
+
+void Player::handleCellClick(int row, int col) {
+    if (!m_placingShips || m_availableShips.empty()) return;
+
+    if (m_currentShipSize <= 0) return;
+
+    if (canPlaceShipAt(row, col, m_currentShipSize, m_horizontal)) {
+        placeShip(row, col, m_currentShipSize, m_horizontal);
+
+        auto it = std::find(m_availableShips.begin(), m_availableShips.end(), m_currentShipSize);
+        if (it != m_availableShips.end()) {
+            m_availableShips.erase(it);
+        }
+
+        if (!m_availableShips.empty()) {
+            m_currentShipSize = m_availableShips.front();
+            emit shipSelectionChanged();
+        } else {
+            m_placingShips = false;
+            emit shipPlacementFinished();
+        }
+    }
 }

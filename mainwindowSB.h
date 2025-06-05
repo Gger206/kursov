@@ -1,5 +1,5 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef MAINWINDOWSB_H
+#define MAINWINDOWSB_H
 
 #include <QMainWindow>
 #include <QTimer>
@@ -19,28 +19,31 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private slots:
     void onStartGame();
+    void onRotateClicked();
+    void onShipTypeChanged(int index);
     void enemyShoot();
     void onShipPlacementFinished();
+    void updatePlacementPreview();
 
 private:
     Ui::MainWindow *ui;
-
-    GameField* m_playerField = nullptr;
-    GameField* m_enemyField = nullptr;
-
-    EnemyFleet* m_enemyAI = nullptr;
-    EnemyShooter* m_enemyShooter = nullptr;
-
+    GameField* m_playerField;
+    GameField* m_enemyField;
+    EnemyFleet* m_enemyAI;
+    EnemyShooter* m_enemyShooter;
     QTimer* m_enemyTimer;
-    bool m_playerTurn = true;
+    bool m_playerTurn;
+    Player* m_player;
 
-    Player* m_player = nullptr;
-
-    void setupPlayerField();
-    void setupEnemyField();
+    void setupFields();
     void playerShoot(int row, int col);
+    void showPlacementPreview(int row, int col);
+    void clearPreview();
 };
 
-#endif // MAINWINDOW_H
+#endif // MAINWINDOWSB_H

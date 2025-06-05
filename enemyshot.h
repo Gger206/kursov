@@ -1,4 +1,3 @@
-#pragma once
 #ifndef ENEMYSHOT_H
 #define ENEMYSHOT_H
 

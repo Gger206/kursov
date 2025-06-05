@@ -1,4 +1,3 @@
-#pragma once
 #ifndef ENEMYFLEET_H
 #define ENEMYFLEET_H
 
@@ -10,18 +9,15 @@
 class EnemyFleet {
 public:
     EnemyFleet(GameField* field);
-
     void placeShips();
 
 private:
     GameField* m_field;
     std::vector<std::unique_ptr<Ship>> m_ships;
 
+    void placeShipOfSize(int size, int count);
     bool canPlaceShip(const QVector<QPoint>& positions);
     void markShipOnField(Ship* ship);
-
-    void placeLargeShipsAtEdges();
-    void placeSingleDeckShipsInCenter();
 };
 
 #endif // ENEMYFLEET_H

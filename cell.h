@@ -1,4 +1,3 @@
-#pragma once
 #ifndef CELL_H
 #define CELL_H
 
@@ -17,10 +16,13 @@ public:
 
     int row() const;
     int col() const;
+    QPushButton* button() const;
+    CellState state() const;  // Добавляем объявление
 
     void setState(CellState state);
-    CellState state() const;
-
+    void setPlayerOwned(bool player);
+    void setHidden(bool hidden);
+    void setPreview(bool preview);
     void updateAppearance();
 
 private:
@@ -28,7 +30,9 @@ private:
     int m_col;
     CellState m_state;
     QPushButton* m_button;
+    bool m_isPlayerCell = false;
+    bool m_hidden = false;
+    bool m_preview = false;
 };
 
 #endif // CELL_H
-

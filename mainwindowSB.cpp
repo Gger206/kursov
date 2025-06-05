@@ -1,37 +1,54 @@
 #include "mainwindowSB.h"
 #include "ui_mainwindowSB.h"
+
+#include <QMessageBox>
 #include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow),
-    m_enemyAI(nullptr), m_enemyShooter(nullptr), m_enemyTimer(new QTimer(this))
+    m_playerField(nullptr), m_enemyField(nullptr),
+    m_enemyAI(nullptr), m_enemyShooter(nullptr),
+    m_playerTurn(true), m_player(nullptr)
 {
     ui->setupUi(this);
 
-    setupPlayerField();
-    setupEnemyField();
+    // Настройка комбобокса
+    ui->shipTypeCombo->addItem("4 (Линкор)", 4);
+    ui->shipTypeCombo->addItem("3 (Крейсер)", 3);
+    ui->shipTypeCombo->addItem("2 (Эсминец)", 2);
+    ui->shipTypeCombo->addItem("1 (Катер)", 1);
 
-    connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::onStartGame);
-
-    connect(m_enemyTimer, &QTimer::timeout, this, &MainWindow::enemyShoot);
+    setupFields();
 
     m_player = new Player(m_playerField, this);
-    connect(m_player, &Player::shipPlacementFinished, this, &MainWindow::onShipPlacementFinished);
-    m_player->startPlacingShips();
+    m_enemyTimer = new QTimer(this);
+
+    // Подключение сигналов
+    connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::onStartGame);
+    connect(ui->rotateButton, &QPushButton::clicked, this, &MainWindow::onRotateClicked);
+    connect(ui->shipTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainWindow::onShipTypeChanged);
+    connect(m_player, &Player::shipPlacementFinished,
+            this, &MainWindow::onShipPlacementFinished);
+    connect(m_player, &Player::shipSelectionChanged,
+            this, &MainWindow::updatePlacementPreview);
+    connect(m_enemyTimer, &QTimer::timeout, this, &MainWindow::enemyShoot);
 }
 
 MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::setupPlayerField() {
-    m_playerField = new GameField(this, ui->widget_3);
+void MainWindow::setupFields() {
+    m_playerField = new GameField(ui->playerField, ui->gridLayout);
+    m_enemyField = new GameField(ui->enemyField, ui->gridLayout_2);
+
     for (int row = 0; row < 10; ++row) {
         for (int col = 0; col < 10; ++col) {
-            Cell* cell = m_playerField->cellAt(row, col);
-            QPushButton* btn = cell->button();
-            connect(btn, &QPushButton::clicked, [=]() {
-                if (m_player) {
+            QPushButton* btn = m_playerField->cellAt(row, col)->button();
+            btn->installEventFilter(this);
+            connect(btn, &QPushButton::clicked, [this, row, col]() {
+                if (m_player && !m_player->allShipsPlaced()) {
                     m_player->handleCellClick(row, col);
                 }
             });
@@ -39,68 +56,144 @@ void MainWindow::setupPlayerField() {
     }
 }
 
-void MainWindow::setupEnemyField() {
-    m_enemyField = new GameField(this, ui->_2);
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::Enter) {
+        for (int row = 0; row < 10; ++row) {
+            for (int col = 0; col < 10; ++col) {
+                if (m_playerField->cellAt(row, col)->button() == watched) {
+                    showPlacementPreview(row, col);
+                    return true;
+                }
+            }
+        }
+    }
+    else if (event->type() == QEvent::Leave) {
+        clearPreview();
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::onStartGame() {
-    ui->label->setText("Игра началась!");
+    ui->startButton->setEnabled(false);
+    m_player->startPlacingShips();
+    updatePlacementPreview();
+}
+
+void MainWindow::onRotateClicked() {
+    if (m_player && !m_player->allShipsPlaced()) {
+        m_player->rotateCurrentShip();
+        updatePlacementPreview();
+    }
+}
+
+void MainWindow::onShipTypeChanged(int index) {
+    if (m_player && index >= 0) {
+        int size = ui->shipTypeCombo->itemData(index).toInt();
+        m_player->selectShip(size);
+        updatePlacementPreview();
+    }
+}
+
+void MainWindow::updatePlacementPreview() {
+    clearPreview();
+
+    if (!m_player || m_player->allShipsPlaced()) {
+        ui->statusLabel->setText("Все корабли размещены");
+        return;
+    }
+
+    int size = m_player->currentShipSize();
+    ui->statusLabel->setText(
+        QString("Размещение: %1 (%2 клетки)")
+            .arg(m_player->getShipName(size))
+            .arg(size)
+        );
+
+    // Обновление информации об оставшихся кораблях
+    QStringList remaining;
+    for (int s : m_player->availableShips()) {
+        remaining << QString::number(s);
+    }
+    ui->shipsRemainingLabel->setText("Осталось: " + remaining.join(","));
+}
+
+void MainWindow::showPlacementPreview(int row, int col) {
+    if (!m_player || m_player->allShipsPlaced()) return;
+
+    int size = m_player->currentShipSize();
+    bool horizontal = m_player->isHorizontal();
+
+    for (int i = 0; i < size; ++i) {
+        int x = horizontal ? col + i : col;
+        int y = horizontal ? row : row + i;
+
+        if (x < 10 && y < 10) {
+            if (m_player->canPlaceShipAt(row, col, size, horizontal)) {
+                m_playerField->cellAt(y, x)->setPreview(true);
+            }
+        }
+    }
+}
+
+void MainWindow::clearPreview() {
+    for (int row = 0; row < 10; ++row) {
+        for (int col = 0; col < 10; ++col) {
+            m_playerField->cellAt(row, col)->setPreview(false);
+        }
+    }
+}
+
+void MainWindow::onShipPlacementFinished() {
+    QMessageBox::information(this, "Готово", "Все корабли размещены! Игра начинается.");
+
+    // Скрываем корабли противника
+    for (int row = 0; row < 10; ++row) {
+        for (int col = 0; col < 10; ++col) {
+            m_enemyField->cellAt(row, col)->setHidden(true);
+            m_enemyField->cellAt(row, col)->setPlayerOwned(false);
+        }
+    }
 
     m_enemyAI = new EnemyFleet(m_enemyField);
     m_enemyAI->placeShips();
-
     m_enemyShooter = new EnemyShooter(m_playerField);
 
+    // Активируем поле противника для стрельбы
     for (int row = 0; row < 10; ++row) {
         for (int col = 0; col < 10; ++col) {
-            Cell* cell = m_enemyField->cellAt(row, col);
-            QPushButton* btn = cell->button();
-            connect(btn, &QPushButton::clicked, [=]() {
-                if (m_playerTurn && cell->state() == CellState::Empty) {
-                    playerShoot(row, col);
-                }
-            });
+            connect(m_enemyField->cellAt(row, col)->button(), &QPushButton::clicked,
+                    [=]() { playerShoot(row, col); });
         }
     }
 }
 
 void MainWindow::playerShoot(int row, int col) {
+    if (!m_playerTurn || !m_enemyField) return;
+
     Cell* cell = m_enemyField->cellAt(row, col);
+    if (!cell || cell->state() != CellState::Empty) return;
+
     if (cell->state() == CellState::Ship) {
         cell->setState(CellState::Hit);
-        ui->label->setText("Попадание!");
     } else {
         cell->setState(CellState::Miss);
-        ui->label->setText("Промах!");
         m_playerTurn = false;
         m_enemyTimer->start(1000);
     }
 }
 
 void MainWindow::enemyShoot() {
-    if (m_playerTurn) {
-        m_enemyTimer->stop();
-        return;
-    }
-
-    QPoint target = m_enemyShooter->chooseTarget();
-    if (!m_playerField->cellAt(target.y(), target.x())) return;
-
+    m_enemyTimer->stop();
+    QPoint target = m_enemyShooter->makeShot();
     Cell* cell = m_playerField->cellAt(target.y(), target.x());
+
     if (cell->state() == CellState::Ship) {
         cell->setState(CellState::Hit);
-        ui->label->setText("ИИ попал!");
-        m_enemyShooter->notifyHit(target);
-        m_enemyTimer->start(800);
+        m_enemyShooter->processShotResult(target, true);
     } else {
         cell->setState(CellState::Miss);
-        ui->label->setText("ИИ промахнулся!");
-        m_enemyShooter->notifyMiss(target);
-        m_enemyTimer->stop();
+        m_enemyShooter->processShotResult(target, false);
         m_playerTurn = true;
     }
-}
-
-void MainWindow::onShipPlacementFinished() {
-    ui->label->setText("Все корабли расставлены. Начинаем бой!");
 }
